@@ -1,17 +1,16 @@
-version: '3.8'
+
 
 services:
   postgres_airflow: # name of the service
     image: postgres:13 # docker image
     restart: always # restart policy - auto restart unless stopped explicitly
     environment: # environment variables for the container
-      POSTGRES_USER: airflow
-      POSTGRES_PASSWORD: airflow
-      POSTGRES_DB: airflow
-    volumes: # stores data related to containers 
+      POSTGRES_USER: airflowuser
+      POSTGRES_PASSWORD: airflowuser
+      POSTGRES_DB: airflowdb
+    volumes: # stores data related to containers - hostPath : containerPath
       - postgres_airflow_data:/var/lib/postgresql/data
-             # maps host files to docker container files
-             # data in host path is accessebile via container path
+  
   postgres_data:
     image: postgres:13
     restart: always
@@ -19,6 +18,8 @@ services:
       POSTGRES_USER: datauser
       POSTGRES_PASSWORD: datauser
       POSTGRES_DB: datadb
+    ports:
+     - "5432:5432"
     volumes:
       - postgres_data_data:/var/lib/postgresql/data
 
@@ -27,16 +28,18 @@ services:
     restart: always
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow@postgres_airflow:5432/airflow
-      AIRFLOW__API__AUTH__BACKEND: airlfow.api.auth.backend.basic
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflowuser:airflowuser@postgres_airflow:5432/airflowdb
+      AIRFLOW__API__AUTH__BACKEND: airflow.api.auth.backend.basic
     depends_on: # dependency - ensures this service starts before airflow service
       - postgres_airflow
     ports: # port 8080 on host to port 8080 on container
       - "8080:8080"
-    volumes: # mounts host to container - dags & plugins 
+    volumes: # mounts host to container - hostPath : containerPath 
       - ./dags:/opt/airflow/dags
       - ./plugins:/opt/airflow/plugins
-
+    command: >
+      bash -c "airflow db init && airflow webserver"  
+  
 volumes: # defines the named volumes from above
   postgres_airflow_data:
   postgres_data_data:
